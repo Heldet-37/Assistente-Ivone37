@@ -4,9 +4,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { Copy, Check, Bot, User } from 'lucide-react';
+import { Copy, Check, Bot, User, Volume2, VolumeX, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 import 'katex/dist/katex.min.css';
+import { speechService } from '../services/speech';
+import { sendWhatsAppMessage } from '../services/whatsapp';
+import { useUserSettings } from '../context/UserSettingsContext';
 
 interface MessageBubbleProps {
   content: string;
@@ -15,7 +18,9 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ content, isUser, timestamp }) => {
+  const { settings } = useUserSettings();
   const [copied, setCopied] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(content);
@@ -28,6 +33,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ content, isUser, t
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      speechService.stop();
+      setIsSpeaking(false);
+    } else {
+      speechService.speak(content);
+      setIsSpeaking(true);
+    }
+  };
+
+  const handleWhatsAppSend = async () => {
+    try {
+      await sendWhatsAppMessage(settings.whatsAppNumber, content);
+      // Mostrar notificação de sucesso
+    } catch (error) {
+      // Mostrar notificação de erro
+    }
   };
 
   return (
@@ -105,6 +129,28 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ content, isUser, t
             isUser ? 'text-white/75' : 'text-gray-500 dark:text-gray-400'
           }`}>
             {formatTime(timestamp)}
+          </div>
+
+          <div className="flex gap-2 mt-2">
+            {settings.enableSpeech && !isUser && (
+              <button
+                onClick={handleSpeak}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                title={isSpeaking ? 'Parar de falar' : 'Ouvir mensagem'}
+              >
+                {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            )}
+            
+            {settings.enableWhatsApp && !isUser && (
+              <button
+                onClick={handleWhatsAppSend}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                title="Enviar para WhatsApp"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
